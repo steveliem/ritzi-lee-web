@@ -1,0 +1,1 @@
+web: java -jar target/ritzi-lee-web-1.0.jar
