@@ -1,1 +1,1 @@
-web: java -jar target/ritzi-lee-web-1.0.jar
+web: java -jar target/*.jar
