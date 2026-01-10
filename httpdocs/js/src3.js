@@ -1420,9 +1420,7 @@ if (!((window._atc || {}).ver)) {
 })();
 $(document).ready(function() {
 		$("#form1").validationEngine({
-			ajaxSubmit: true,
-				ajaxSubmitFile: "ajaxSubmit.php",
-				ajaxSubmitMessage: "Thank you, I will contact you soon !",
+			ajaxSubmit: false,
 			success :  false,
 			failure : function() {}
 		})	

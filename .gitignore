@@ -2,3 +2,7 @@ target
 .env
 .idea/
 *.iml
+*.php
+./httpdocs/*.php
+.DS_Store
+dist/
