@@ -4,7 +4,6 @@ interface Env {
   TURNSTILE_SECRET: string;
 }
 
-// Static Forms handler: houd het simpel, laat je overlay (iframe load) de UI doen
 const handler = staticFormsPlugin({
   respondWith: async () => {
     return new Response("OK", {
@@ -15,16 +14,25 @@ const handler = staticFormsPlugin({
 });
 
 export const onRequest: PagesFunction<Env> = async (ctx) => {
+  const start = Date.now();
+  console.log("TURNSTILE_WRAPPER_V4", new Date().toISOString());
+
   const { request, env } = ctx;
+
+  const withHeaders = (res: Response) => {
+    res.headers.set("x-rl-turnstile", "v4");
+    res.headers.set("x-rl-ms", String(Date.now() - start));
+    return res;
+  };
 
   // Alleen POSTs (form submits) moeten Turnstile hebben
   if (request.method === "POST") {
-    // Lees body 1x
     const formData = await request.formData();
 
-    // Turnstile token uit form (implicit rendering default field name)
     const token = (formData.get("cf-turnstile-response") || "").toString().trim();
-    if (!token) return new Response("Forbidden", { status: 403 });
+    if (!token) {
+      return withHeaders(new Response("Forbidden", { status: 403 }));
+    }
 
     const ip = request.headers.get("CF-Connecting-IP") || "";
 
@@ -45,22 +53,19 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
         signal: ac.signal,
       });
     } catch {
-      // timeout / netwerk issue -> hard fail
-      return new Response("Forbidden", { status: 403 });
+      return withHeaders(new Response("Forbidden", { status: 403 }));
     } finally {
       clearTimeout(timer);
     }
 
     const outcome: any = await verifyResp.json();
     if (outcome.success !== true) {
-      return new Response("Forbidden", { status: 403 });
+      return withHeaders(new Response("Forbidden", { status: 403 }));
     }
 
     // Rebuild request zodat Static Forms plugin de body opnieuw kan lezen
     const rebuilt = new URLSearchParams();
-    for (const [k, v] of formData.entries()) {
-      rebuilt.append(k, String(v)); // jouw form heeft alleen strings
-    }
+    for (const [k, v] of formData.entries()) rebuilt.append(k, String(v));
 
     const rebuiltRequest = new Request(request.url, {
       method: request.method,
@@ -68,13 +73,13 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
       body: rebuilt,
     });
 
-    // ctx.request is readonly typed -> maak een nieuw context object
     const nextCtx = { ...ctx, request: rebuiltRequest };
 
-    // Nu pas de Static Forms plugin handler
-    return handler(nextCtx as any);
+    const res = await handler(nextCtx as any);
+    return withHeaders(res);
   }
 
-  // Non-POST: laat plugin gewoon zijn werk doen (GET etc.)
-  return handler(ctx as any);
+  // Non-POST
+  const res = await handler(ctx as any);
+  return withHeaders(res);
 };
