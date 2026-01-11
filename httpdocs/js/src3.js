@@ -1433,18 +1433,14 @@ $(document).ready(function() {
   $(function () {
     var submitted = false;
   
-    // Zorg dat validationEngine NIET meer via ajaxSubmit gaat
-    // (die regel heb je al eerder aangepast naar ajaxSubmit:false)
-  
     $("#form1").on("submit", function () {
       submitted = true;
     });
   
     $("#form_target").on("load", function () {
-      if (!submitted) return;     // voorkom triggers bij eerste pagina-load
+      if (!submitted) return;
       submitted = false;
   
-      // Probeer de response te lezen (same-origin, dus dit mag)
       var bodyText = "";
       try {
         bodyText = $(this).contents().text() || "";
@@ -1452,13 +1448,16 @@ $(document).ready(function() {
         bodyText = "";
       }
   
-      // Als je middleware 403 geeft, staat "Forbidden" meestal in de body
+      // 403 of andere error → toon nette melding
       if (bodyText.toLowerCase().includes("forbidden")) {
-        $("#form-div").prepend('<p class="form-error">Forbidden (origin/referer mismatch)</p>');
+        $("#turnstile-status").remove(); // als je al zo’n status element hebt
+        $("#form-div").prepend(
+          '<p class="form-error">Captcha failed or request blocked. Please try again.</p>'
+        );
         return;
       }
   
-      // SUCCESS UI in dezelfde overlay
+      // Success → jouw bestaande thanks UI
       $("#form-div").html(`
         <div class="form-success">
           <h3 class="hardware">Thanks</h3>
@@ -1467,14 +1466,12 @@ $(document).ready(function() {
         </div>
       `);
   
-      $("#closeOverlayBtn").on("click", function () {
-        $("#petrol").data("overlay")?.close();
+      $(document).on("click", "#closeOverlayBtn", function () {
+        $("#petrol .close").trigger("click");
       });
-  
-      // optional: reset form fields (als je form nog bestaat; nu vervangen we HTML)
-      // document.getElementById("form1")?.reset();
     });
   });
+  
   
   (function () {
     // ===== Config =====
