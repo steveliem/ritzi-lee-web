@@ -4,17 +4,13 @@ interface Env {
   TURNSTILE_SECRET: string;
 }
 
-// 1) jouw bestaande Static Forms handler (ongewijzigd)
+// Static Forms handler: houd het simpel, laat je overlay (iframe load) de UI doen
 const handler = staticFormsPlugin({
-  respondWith: async ({ formData, name }) => {
-    return new Response(
-      `<!doctype html><html><body>
-        <script>
-          parent.postMessage({ type: "form", ok: true, form: ${JSON.stringify(name)} }, location.origin);
-        </script>
-      </body></html>`,
-      { headers: { "content-type": "text/html; charset=utf-8" } }
-    );
+  respondWith: async () => {
+    return new Response("OK", {
+      status: 200,
+      headers: { "content-type": "text/plain; charset=utf-8" },
+    });
   },
 });
 
@@ -26,7 +22,7 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
     // Lees body 1x
     const formData = await request.formData();
 
-    // 2) Turnstile token uit form
+    // Turnstile token uit form (implicit rendering default field name)
     const token = (formData.get("cf-turnstile-response") || "").toString().trim();
     if (!token) return new Response("Forbidden", { status: 403 });
 
@@ -37,17 +33,30 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
     body.append("response", token);
     if (ip) body.append("remoteip", ip);
 
-    const verifyResp = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-      method: "POST",
-      body,
-    });
+    // Harde timeout op siteverify
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 4000);
+
+    let verifyResp: Response;
+    try {
+      verifyResp = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        body,
+        signal: ac.signal,
+      });
+    } catch {
+      // timeout / netwerk issue -> hard fail
+      return new Response("Forbidden", { status: 403 });
+    } finally {
+      clearTimeout(timer);
+    }
 
     const outcome: any = await verifyResp.json();
     if (outcome.success !== true) {
       return new Response("Forbidden", { status: 403 });
     }
 
-    // 3) Rebuild request zodat Static Forms plugin de body opnieuw kan lezen
+    // Rebuild request zodat Static Forms plugin de body opnieuw kan lezen
     const rebuilt = new URLSearchParams();
     for (const [k, v] of formData.entries()) {
       rebuilt.append(k, String(v)); // jouw form heeft alleen strings
@@ -62,7 +71,7 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
     // ctx.request is readonly typed -> maak een nieuw context object
     const nextCtx = { ...ctx, request: rebuiltRequest };
 
-    // 4) Nu pas de Static Forms plugin handler
+    // Nu pas de Static Forms plugin handler
     return handler(nextCtx as any);
   }
 
