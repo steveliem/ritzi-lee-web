@@ -1476,3 +1476,79 @@ $(document).ready(function() {
     });
   });
   
+  (function () {
+    // ===== Config =====
+    var TOKEN_FIELD = "cf-turnstile-response"; // default Turnstile hidden input name
+
+    function getForm() {
+      return document.getElementById("form1");
+    }
+
+    function getSubmitBtn() {
+      var form = getForm();
+      return form ? form.querySelector('input[type="submit"], button[type="submit"]') : null;
+    }
+
+    function setStatus(msg) {
+      var host = document.getElementById("form-div");
+      if (!host) return;
+
+      var el = document.getElementById("turnstile-status");
+      if (!el) {
+        el = document.createElement("p");
+        el.id = "turnstile-status";
+        el.className = "form-error"; // gebruik je eigen class als je wil
+        // plaats boven de submit
+        host.appendChild(el);
+      }
+      el.textContent = msg || "";
+      el.style.display = msg ? "block" : "none";
+    }
+
+    function setSubmitEnabled(enabled) {
+      var btn = getSubmitBtn();
+      if (btn) btn.disabled = !enabled;
+    }
+
+    function hasToken() {
+      var form = getForm();
+      if (!form) return false;
+
+      var field = form.querySelector('input[name="' + TOKEN_FIELD + '"]');
+      return !!(field && field.value && field.value.trim().length > 0);
+    }
+
+    // ===== Public callbacks for Turnstile (must be global) =====
+    window.onTurnstileSuccess = function (token) {
+      // token is present + hidden field is set
+      setStatus("");          // clear any error
+      setSubmitEnabled(true); // allow submit
+    };
+
+    window.onTurnstileError = function () {
+      setStatus("Captcha error. Please refresh the page and try again.");
+      setSubmitEnabled(false);
+    };
+
+    window.onTurnstileExpired = function () {
+      setStatus("Captcha expired. Please complete it again.");
+      setSubmitEnabled(false);
+    };
+
+    // ===== On page ready: disable submit until captcha ok =====
+    document.addEventListener("DOMContentLoaded", function () {
+      setSubmitEnabled(false);
+
+      var form = getForm();
+      if (!form) return;
+
+      // Guard: if user tries to submit without token, block it
+      form.addEventListener("submit", function (e) {
+        if (!hasToken()) {
+          e.preventDefault();
+          setStatus("Please complete the captcha before submitting.");
+          setSubmitEnabled(false);
+        }
+      });
+    });
+  })();
