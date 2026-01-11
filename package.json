@@ -1,0 +1,16 @@
+{
+	"name": "ritzi-lee-web",
+	"version": "0.0.1",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev"
+	},
+	"devDependencies": {
+		"wrangler": "^4.58.0"
+	},
+	"dependencies": {
+		"@cloudflare/pages-plugin-static-forms": "^1.0.3"
+	}
+}
