@@ -2,12 +2,17 @@ import staticFormsPlugin from "@cloudflare/pages-plugin-static-forms";
 
 interface Env {
   TURNSTILE_SECRET: string;
+  RESEND_API_KEY: string;
 }
 
 // ---- Tunables ----
 const SITEVERIFY_TIMEOUT_MS = 4000;
+const EMAIL_SEND_TIMEOUT_MS = 6000;
 
-// Static Forms handler: keep it simple; your iframe-load JS handles the UI
+// ---- Email settings ----
+const TO_EMAIL = "contact@ritzi-lee.com";
+const FROM_EMAIL = "no-reply@ritzi-lee.com"; // must be a verified sender/domain in Resend
+
 const handler = staticFormsPlugin({
   respondWith: async () => {
     return new Response("OK", {
@@ -20,7 +25,6 @@ const handler = staticFormsPlugin({
   },
 });
 
-// Small helper: consistent 403 responses with machine-readable reason
 function forbidden(code: string) {
   return new Response(code, {
     status: 403,
@@ -31,22 +35,97 @@ function forbidden(code: string) {
   });
 }
 
+function serverError(code: string) {
+  return new Response(code, {
+    status: 500,
+    headers: {
+      "content-type": "text/plain; charset=utf-8",
+      "cache-control": "no-store",
+    },
+  });
+}
+
+async function sendEmailViaResend(env: Env, request: Request, formData: FormData) {
+  // Your form fields
+  const name = (formData.get("name") || "").toString().trim().slice(0, 120);
+  const email = (formData.get("email") || "").toString().trim().slice(0, 200);
+  const subjectRaw = (formData.get("web") || "").toString().trim(); // your Subject field
+  const message = (formData.get("text") || "").toString().trim();
+
+  const subject = (subjectRaw || "Website contact form").slice(0, 140);
+
+  // Optional metadata
+  const ip = request.headers.get("CF-Connecting-IP") || "";
+  const ua = request.headers.get("User-Agent") || "";
+  const referer = request.headers.get("Referer") || "";
+
+  const text =
+    `New message from ritzi-lee.com\n\n` +
+    `Name: ${name || "(empty)"}\n` +
+    `Email: ${email || "(empty)"}\n` +
+    `Subject: ${subject}\n\n` +
+    `Message:\n${message}\n\n` +
+    `---\n` +
+    `IP: ${ip}\n` +
+    `User-Agent: ${ua}\n` +
+    `Referer: ${referer}\n` +
+    `Time: ${new Date().toISOString()}\n`;
+
+  // Resend "Send Email" payload (REST)
+  // Docs: POST https://api.resend.com/emails, Authorization: Bearer re_xxx :contentReference[oaicite:3]{index=3}
+  const payload: Record<string, unknown> = {
+    from: `ritzi-lee.com <${FROM_EMAIL}>`,
+    to: [TO_EMAIL],
+    subject,
+    text,
+    // Let you hit "Reply" to respond to the visitor:
+    ...(email ? { reply_to: `${name || email} <${email}>` } : {}),
+  };
+
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), EMAIL_SEND_TIMEOUT_MS);
+
+  try {
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${env.RESEND_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+      signal: ac.signal,
+    });
+
+    if (!resp.ok) {
+      // Keep stable error codes; don’t leak provider details to clients
+      if (resp.status === 401 || resp.status === 403) return { ok: false as const, code: "EMAIL_SEND_FAILED_AUTH" };
+      if (resp.status === 422) return { ok: false as const, code: "EMAIL_SEND_FAILED_INVALID" };
+      return { ok: false as const, code: "EMAIL_SEND_FAILED_PROVIDER" };
+    }
+
+    return { ok: true as const };
+  } catch {
+    return { ok: false as const, code: "EMAIL_SEND_FAILED_TIMEOUT" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const onRequest: PagesFunction<Env> = async (ctx) => {
   const { request, env } = ctx;
 
-  // Only POST needs Turnstile verification (GET etc. can be handled by the plugin)
+  // Non-POST: let Static Forms plugin do its thing
   if (request.method !== "POST") {
     return handler(ctx as any);
   }
 
-  // Read body once (we'll rebuild it for the plugin afterwards)
+  // Read body once
   const formData = await request.formData();
 
-  // 1) Turnstile token (implicit rendering default field name)
+  // 1) Turnstile server verify
   const token = (formData.get("cf-turnstile-response") || "").toString().trim();
   if (!token) return forbidden("FORBIDDEN_TURNSTILE_MISSING_TOKEN");
 
-  // 2) Server-side siteverify with hard timeout
   const ip = request.headers.get("CF-Connecting-IP") || "";
 
   const verifyBody = new URLSearchParams();
@@ -81,9 +160,13 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
     return forbidden("FORBIDDEN_TURNSTILE_INVALID");
   }
 
-  // 3) Rebuild request so the Static Forms plugin can read the body again
-  // (Your form only submits string fields; this is safe. If you add file uploads later,
-  // you must rebuild as multipart/form-data instead.)
+  // 2) Send email via Resend (only after Turnstile OK)
+  const emailRes = await sendEmailViaResend(env, request, formData);
+  if (!emailRes.ok) {
+    return serverError(emailRes.code);
+  }
+
+  // 3) Rebuild request so Static Forms plugin can read it again
   const rebuilt = new URLSearchParams();
   for (const [k, v] of formData.entries()) rebuilt.append(k, String(v));
 
@@ -95,6 +178,6 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
 
   const nextCtx = { ...ctx, request: rebuiltRequest };
 
-  // 4) Static Forms plugin (final step)
+  // 4) Static Forms plugin final step
   return handler(nextCtx as any);
 };
