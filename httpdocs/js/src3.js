@@ -1430,3 +1430,27 @@ $(document).ready(function() {
     $("button[rel]").overlay({mask: '#000'});
   });
 
+  window.addEventListener("message", function (ev) {
+    // Alleen berichten van jezelf accepteren
+    if (ev.origin !== window.location.origin) return;
+  
+    const data = ev.data || {};
+    if (data.type === "form" && data.ok) {
+      // 1) toon message in overlay
+      const formDiv = document.getElementById("form-div");
+      if (formDiv) {
+        formDiv.innerHTML = `
+          <div class="form-success">
+            <h3 class="hardware">Thanks</h3>
+            <p>Your message has been sent.</p>
+            <p><button type="button" id="closeOverlayBtn">Close</button></p>
+          </div>
+        `;
+        document.getElementById("closeOverlayBtn")?.addEventListener("click", function () {
+          // jQuery Tools overlay close
+          $("#petrol").data("overlay")?.close();
+        });
+      }
+    }
+  });
+  
