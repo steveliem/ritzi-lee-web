@@ -1430,27 +1430,49 @@ $(document).ready(function() {
     $("button[rel]").overlay({mask: '#000'});
   });
 
-  window.addEventListener("message", function (ev) {
-    // Alleen berichten van jezelf accepteren
-    if (ev.origin !== window.location.origin) return;
+  $(function () {
+    var submitted = false;
   
-    const data = ev.data || {};
-    if (data.type === "form" && data.ok) {
-      // 1) toon message in overlay
-      const formDiv = document.getElementById("form-div");
-      if (formDiv) {
-        formDiv.innerHTML = `
-          <div class="form-success">
-            <h3 class="hardware">Thanks</h3>
-            <p>Your message has been sent.</p>
-            <p><button type="button" id="closeOverlayBtn">Close</button></p>
-          </div>
-        `;
-        document.getElementById("closeOverlayBtn")?.addEventListener("click", function () {
-          // jQuery Tools overlay close
-          $("#petrol").data("overlay")?.close();
-        });
+    // Zorg dat validationEngine NIET meer via ajaxSubmit gaat
+    // (die regel heb je al eerder aangepast naar ajaxSubmit:false)
+  
+    $("#form1").on("submit", function () {
+      submitted = true;
+    });
+  
+    $("#form_target").on("load", function () {
+      if (!submitted) return;     // voorkom triggers bij eerste pagina-load
+      submitted = false;
+  
+      // Probeer de response te lezen (same-origin, dus dit mag)
+      var bodyText = "";
+      try {
+        bodyText = $(this).contents().text() || "";
+      } catch (e) {
+        bodyText = "";
       }
-    }
+  
+      // Als je middleware 403 geeft, staat "Forbidden" meestal in de body
+      if (bodyText.toLowerCase().includes("forbidden")) {
+        $("#form-div").prepend('<p class="form-error">Forbidden (origin/referer mismatch)</p>');
+        return;
+      }
+  
+      // SUCCESS UI in dezelfde overlay
+      $("#form-div").html(`
+        <div class="form-success">
+          <h3 class="hardware">Thanks</h3>
+          <p>Your message has been sent.</p>
+          <p><button type="button" id="closeOverlayBtn">Close</button></p>
+        </div>
+      `);
+  
+      $("#closeOverlayBtn").on("click", function () {
+        $("#petrol").data("overlay")?.close();
+      });
+  
+      // optional: reset form fields (als je form nog bestaat; nu vervangen we HTML)
+      // document.getElementById("form1")?.reset();
+    });
   });
   
