@@ -2705,3 +2705,47 @@ h3.work-selected-title{
 	outline-offset: 2px;
   }
   
+/* Contact form: errors/success altijd bovenaan, nooit naast de form */
+#petrol #form-div{
+	flex-direction: column;   /* <-- fix */
+	align-items: stretch;
+  }
+  
+  /* Form vult de rest van de beschikbare hoogte */
+  #petrol #contactForm{
+	flex: 1 1 auto;
+  }
+  
+  /* Jouw runtime error message */
+  #petrol .form-error{
+	width: 100%;
+	box-sizing: border-box;
+	margin: 0 0 12px 0;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: #810000;
+	color: #fff;
+	font-size: 12px;
+	line-height: 1.3;
+  }
+  
+  /* Success block (zelfde vibe) */
+  #petrol .form-success{
+	width: 100%;
+	box-sizing: border-box;
+	padding: 14px 12px;
+  }
+  #petrol .form-success p{
+	margin-top: 10px;
+  }
+  #petrol #closeOverlayBtn{
+	width: auto;
+	padding: 8px 18px;
+	border: 2px solid #000;
+	background: #debd05;
+	color: #000;
+	font-weight: bold;
+	border-radius: 8px;
+	cursor: pointer;
+  }
+  

@@ -580,59 +580,59 @@ $(function () {
 })
 
 $(function () {
-    // =========================
-    // Overlay init (CONTACT)
-    // =========================
-    $("button[rel]").overlay({ mask: '#000' });
-  
-    // =========================
-    // Form submit flow
-    // =========================
-    var submitted = false;
-  
-    $("#contactForm").on("submit", function (e) {
-      // Als submit door native validation of Turnstile is geblokkeerd
-      if (e.isDefaultPrevented && e.isDefaultPrevented()) {
-        return;
-      }
-      submitted = true;
-    });
-  
-    $("#form_target").on("load", function () {
-      if (!submitted) return;
-      submitted = false;
-  
-      var bodyText = "";
-      try {
-        bodyText = $(this).contents().text() || "";
-      } catch (e) {
-        bodyText = "";
-      }
-  
-      // Error (403 / captcha)
-      if (bodyText.toLowerCase().includes("forbidden")) {
-        $("#form-div .form-error").remove();
-        $("#form-div").prepend(
-          '<p class="form-error">Captcha failed or request blocked. Please try again.</p>'
-        );
-        return;
-      }
-  
-      // Success
-      $("#form-div").html(
-        '<div class="form-success">' +
-          '<h3 class="hardware">Thanks</h3>' +
-          '<p>Your message has been sent.</p>' +
-          '<p><button type="button" id="closeOverlayBtn">Close</button></p>' +
-        '</div>'
-      );
-    });
+    $("button[rel]").overlay({ mask: "#000" });
   
     $(document).on("click", "#closeOverlayBtn", function () {
       $("#petrol .close").trigger("click");
     });
-  });
   
+    $("#contactForm").on("submit", async function (e) {
+      e.preventDefault();
+  
+      // als jouw vanilla validation errors plaatst: die draait ook op submit
+      // maar checkValidity is extra safety
+      if (!this.checkValidity()) {
+        this.reportValidity?.();
+        return;
+      }
+  
+      const $form = $(this);
+      const $submit = $form.find('input[type="submit"], button[type="submit"]');
+      $submit.prop("disabled", true);
+  
+      try {
+        const res = await fetch(window.location.href, {
+          method: "POST",
+          body: new FormData(this),
+          credentials: "same-origin"
+        });
+  
+        if (!res.ok) {
+            $form.find(".form-error").remove();
+            $form.prepend(
+                '<p class="form-error">Send failed (' + res.status + '). Please try again.</p>'
+            );
+            $submit.prop("disabled", false);
+            return;
+        }
+  
+        $form.html(
+          '<div class="form-success">' +
+            '<h3 class="hardware">Thanks</h3>' +
+            '<p>Your message has been sent.</p>' +
+            '<p><button type="button" id="closeOverlayBtn">Close</button></p>' +
+          '</div>'
+        );
+      } catch (err) {
+        $form.find(".form-error").remove();
+        $form.prepend(
+          '<p class="form-error">Network error. Please try again.</p>'
+        );
+        $submit.prop("disabled", false);
+      }
+    });
+  });
+    
   
   (function () {
     // ===== Config =====
