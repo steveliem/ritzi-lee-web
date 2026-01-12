@@ -5,13 +5,11 @@ interface Env {
   RESEND_API_KEY: string;
 }
 
-// ---- Tunables ----
 const SITEVERIFY_TIMEOUT_MS = 4000;
 const EMAIL_SEND_TIMEOUT_MS = 6000;
 
-// ---- Email settings ----
 const TO_EMAIL = "contact@ritzi-lee.com";
-const FROM_EMAIL = "no-reply@ritzi-lee.com"; // must be a verified sender/domain in Resend
+const FROM_EMAIL = "no-reply@ritzi-lee.com";
 
 const handler = staticFormsPlugin({
   respondWith: async () => {
@@ -46,15 +44,13 @@ function serverError(code: string) {
 }
 
 async function sendEmailViaResend(env: Env, request: Request, formData: FormData) {
-  // Your form fields
   const name = (formData.get("name") || "").toString().trim().slice(0, 120);
   const email = (formData.get("email") || "").toString().trim().slice(0, 200);
-  const subjectRaw = (formData.get("web") || "").toString().trim(); // your Subject field
+  const subjectRaw = (formData.get("web") || "").toString().trim();
   const message = (formData.get("text") || "").toString().trim();
 
   const subject = (subjectRaw || "Website contact form").slice(0, 140);
 
-  // Optional metadata
   const ip = request.headers.get("CF-Connecting-IP") || "";
   const ua = request.headers.get("User-Agent") || "";
   const referer = request.headers.get("Referer") || "";
@@ -71,14 +67,11 @@ async function sendEmailViaResend(env: Env, request: Request, formData: FormData
     `Referer: ${referer}\n` +
     `Time: ${new Date().toISOString()}\n`;
 
-  // Resend "Send Email" payload (REST)
-  // Docs: POST https://api.resend.com/emails, Authorization: Bearer re_xxx :contentReference[oaicite:3]{index=3}
   const payload: Record<string, unknown> = {
     from: `ritzi-lee.com <${FROM_EMAIL}>`,
     to: [TO_EMAIL],
     subject,
     text,
-    // Let you hit "Reply" to respond to the visitor:
     ...(email ? { reply_to: `${name || email} <${email}>` } : {}),
   };
 
@@ -97,7 +90,6 @@ async function sendEmailViaResend(env: Env, request: Request, formData: FormData
     });
 
     if (!resp.ok) {
-      // Keep stable error codes; don’t leak provider details to clients
       if (resp.status === 401 || resp.status === 403) return { ok: false as const, code: "EMAIL_SEND_FAILED_AUTH" };
       if (resp.status === 422) return { ok: false as const, code: "EMAIL_SEND_FAILED_INVALID" };
       return { ok: false as const, code: "EMAIL_SEND_FAILED_PROVIDER" };
@@ -114,15 +106,18 @@ async function sendEmailViaResend(env: Env, request: Request, formData: FormData
 export const onRequest: PagesFunction<Env> = async (ctx) => {
   const { request, env } = ctx;
 
-  // Non-POST: let Static Forms plugin do its thing
+  // ✅ Laat GET/HEAD etc door naar plugin/site
   if (request.method !== "POST") {
     return handler(ctx as any);
   }
 
-  // Read body once
+  // ✅ CLONE het originele request meteen (voor Static Forms plugin)
+  const pluginRequest = request.clone();
+
+  // Read body (nu alleen voor jouw checks + mail)
   const formData = await request.formData();
 
-  // 1) Turnstile server verify
+  // 1) Turnstile
   const token = (formData.get("cf-turnstile-response") || "").toString().trim();
   if (!token) return forbidden("FORBIDDEN_TURNSTILE_MISSING_TOKEN");
 
@@ -160,24 +155,13 @@ export const onRequest: PagesFunction<Env> = async (ctx) => {
     return forbidden("FORBIDDEN_TURNSTILE_INVALID");
   }
 
-  // 2) Send email via Resend (only after Turnstile OK)
+  // 2) Resend mail
   const emailRes = await sendEmailViaResend(env, request, formData);
   if (!emailRes.ok) {
     return serverError(emailRes.code);
   }
 
-  // 3) Rebuild request so Static Forms plugin can read it again
-  const rebuilt = new URLSearchParams();
-  for (const [k, v] of formData.entries()) rebuilt.append(k, String(v));
-
-  const rebuiltRequest = new Request(request.url, {
-    method: "POST",
-    headers: request.headers,
-    body: rebuilt,
-  });
-
-  const nextCtx = { ...ctx, request: rebuiltRequest };
-
-  // 4) Static Forms plugin final step
+  // 3) ✅ Laat Static Forms plugin het ORIGINELE request verwerken (clone)
+  const nextCtx = { ...ctx, request: pluginRequest };
   return handler(nextCtx as any);
 };

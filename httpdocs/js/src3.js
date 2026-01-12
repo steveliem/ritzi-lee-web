@@ -610,11 +610,18 @@ $(function () {
         if (!res.ok) {
             $form.find(".form-error").remove();
             $form.prepend(
-                '<p class="form-error">Send failed (' + res.status + '). Please try again.</p>'
+              '<p class="form-error">Send failed (' + res.status + '). Please try again.</p>'
             );
+          
+            // ✅ Als Turnstile aanwezig is en token faalt -> reset voor retry
+            if (res.status === 403 && window.turnstile && document.querySelector(".cf-turnstile")) {
+              try { turnstile.reset(); } catch(e) {}
+            }
+          
             $submit.prop("disabled", false);
             return;
-        }
+          }
+          
   
         $form.html(
           '<div class="form-success">' +
