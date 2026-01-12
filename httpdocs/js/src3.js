@@ -428,6 +428,7 @@ jQuery.extend(jQuery.easing, {
         return jQuery.easing.easeOutBounce(a, b * 2 - e, 0, d, e) * .5 + d * .5 + c
     }
 });
+
 $(function () {
     $("img").mouseover(function () {
         var a = $(this).attr("src").match(/[^\.]+/) + "-hover.jpg";
@@ -437,599 +438,6 @@ $(function () {
         $(this).attr("src", a)
     })
 });
-(function () {
-    var a = /msie (6|7|8)/i.test(navigator.userAgent) && !/opera/i.test(navigator.userAgent);
-    var b = window.soundcloud = {
-        version: "0.1",
-        debug: false,
-        _listeners: [],
-        _redispatch: function (a, b, c) {
-            var d, e = this._listeners[a] || [],
-                f = "soundcloud:" + a;
-            try {
-                d = this.getPlayer(b)
-            } catch (g) {
-                if (this.debug && window.console) {
-                    console.error("unable to dispatch widget event " + a + " for the widget id " + b, c, g)
-                }
-                return
-            }
-            if (window.jQuery) {
-                jQuery(d).trigger(f, [c])
-            } else if (window.Prototype) {
-                $(d).fire(f, c)
-            } else {}
-            for (var h = 0, i = e.length; h < i; h += 1) {
-                e[h].apply(d, [d, c])
-            }
-            if (this.debug && window.console) {
-                console.log(f, a, b, c)
-            }
-        },
-        addEventListener: function (a, b) {
-            if (!this._listeners[a]) {
-                this._listeners[a] = []
-            }
-            this._listeners[a].push(b)
-        },
-        removeEventListener: function (a, b) {
-            var c = this._listeners[a] || [];
-            for (var d = 0, e = c.length; d < e; d += 1) {
-                if (c[d] === b) {
-                    c.splice(d, 1)
-                }
-            }
-        },
-        getPlayer: function (b) {
-            var c;
-            try {
-                if (!b) {
-                    throw "The SoundCloud Widget DOM object needs an id atribute, please refer to SoundCloud Widget API documentation."
-                }
-                c = a ? window[b] : document[b];
-                if (c) {
-                    if (c.api_getFlashId) {
-                        return c
-                    } else {
-                        throw "The SoundCloud Widget External Interface is not accessible. Check that allowscriptaccess is set to 'always' in embed code"
-                    }
-                } else {
-                    throw "The SoundCloud Widget with an id " + b + " couldn't be found"
-                }
-            } catch (d) {
-                if (console && console.error) {
-                    console.error(d)
-                }
-                throw d
-            }
-        },
-        onPlayerReady: function (a, b) {
-            this._redispatch("onPlayerReady", a, b)
-        },
-        onMediaStart: function (a, b) {
-            this._redispatch("onMediaStart", a, b)
-        },
-        onMediaEnd: function (a, b) {
-            this._redispatch("onMediaEnd", a, b)
-        },
-        onMediaPlay: function (a, b) {
-            this._redispatch("onMediaPlay", a, b)
-        },
-        onMediaPause: function (a, b) {
-            this._redispatch("onMediaPause", a, b)
-        },
-        onMediaBuffering: function (a, b) {
-            this._redispatch("onMediaBuffering", a, b)
-        },
-        onMediaSeek: function (a, b) {
-            this._redispatch("onMediaSeek", a, b)
-        },
-        onMediaDoneBuffering: function (a, b) {
-            this._redispatch("onMediaDoneBuffering", a, b)
-        },
-        onPlayerError: function (a, b) {
-            this._redispatch("onPlayerError", a, b)
-        }
-    }
-})();
-(function (b) {
-    var c = function (a) {
-        var b = function (a) {
-            return {
-                h: Math.floor(a / (60 * 60 * 1e3)),
-                m: Math.floor(a / 6e4 % 60),
-                s: Math.floor(a / 1e3 % 60)
-            }
-        }(a),
-            c = [];
-        if (b.h > 0) {
-            c.push(b.h)
-        }
-        c.push(b.m < 10 && b.h > 0 ? "0" + b.m : b.m);
-        c.push(b.s < 10 ? "0" + b.s : b.s);
-        return c.join(".")
-    };
-    var d = function (a) {
-        a.sort(function () {
-            return Math.round(Math.random())
-        });
-        return a
-    };
-    var e = true,
-        f = false,
-        g = b(document),
-        h = function (a) {
-            try {
-                if (e && window.console && window.console.log) {
-                    window.console.log.apply(window.console, arguments)
-                }
-            } catch (b) {}
-        }, i = f ? "sandbox-soundcloud.com" : "soundcloud.com",
-        j = function (a, b) {
-            return (/api\./.test(a) ? a + "?" : "http://api." + i + "/resolve?url=" + a + "&") + "format=json&consumer_key=" + b + "&callback=?"
-        };
-    var k = function () {
-        var c = function () {
-            var a = false;
-            try {
-                var b = new Audio;
-                a = b.canPlayType && /maybe|probably/.test(b.canPlayType("audio/mpeg"));
-                a = a && /iPad|iphone|mobile|pre\//i.test(navigator.userAgent)
-            } catch (c) {}
-            return a
-        }(),
-            d = {
-                onReady: function () {
-                    g.trigger("scPlayer:onAudioReady")
-                },
-                onPlay: function () {
-                    g.trigger("scPlayer:onMediaPlay")
-                },
-                onPause: function () {
-                    g.trigger("scPlayer:onMediaPause")
-                },
-                onEnd: function () {
-                    g.trigger("scPlayer:onMediaEnd")
-                },
-                onBuffer: function (a) {
-                    g.trigger({
-                        type: "scPlayer:onMediaBuffering",
-                        percent: a
-                    })
-                }
-            };
-        var e = function () {
-            var c = new Audio,
-                e = function (a) {
-                    var b = a.target,
-                        c = (b.buffered.length && b.buffered.end(0)) / b.duration * 100;
-                    d.onBuffer(c);
-                    if (b.currentTime === b.duration) {
-                        d.onEnd()
-                    }
-                }, f = function (a) {
-                    var b = a.target,
-                        c = (b.buffered.length && b.buffered.end(0)) / b.duration * 100;
-                    d.onBuffer(c)
-                };
-            b('<div class="sc-player-engine-container"></div>').appendTo(document.body).append(c);
-            c.addEventListener("play", d.onPlay, false);
-            c.addEventListener("pause", d.onPause, false);
-            c.addEventListener("ended", d.onEnd, false);
-            c.addEventListener("timeupdate", e, false);
-            c.addEventListener("progress", f, false);
-            return {
-                load: function (a, b) {
-                    c.pause();
-                    c.src = a.stream_url + "?consumer_key=" + b;
-                    c.load();
-                    c.play()
-                },
-                play: function () {
-                    c.play()
-                },
-                pause: function () {
-                    c.pause()
-                },
-                stop: function () {
-                    c.currentTime = 0;
-                    c.pause()
-                },
-                seek: function (a) {
-                    c.currentTime = c.duration * a;
-                    c.play()
-                },
-                getDuration: function () {
-                    return c.duration
-                },
-                getPosition: function () {
-                    return c.currentTime
-                },
-                setVolume: function (b) {
-                    if (a) {
-                        a.volume = b / 100
-                    }
-                }
-            }
-        };
-        var f = function () {
-            var a = "scPlayerEngine",
-                c, e = function (c) {
-                    var d = "http://player." + i + "/player.swf?url=" + c + "&enable_api=true&player_type=engine&object_id=" + a;
-                    if (b.browser.msie) {
-                        return '<object height="100%" width="100%" id="' + a + '" classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" data="' + d + '">' + '<param name="movie" value="' + d + '" />' + '<param name="allowscriptaccess" value="always" />' + "</object>"
-                    } else {
-                        return '<object height="100%" width="100%" id="' + a + '">' + '<embed allowscriptaccess="always" height="100%" width="100%" src="' + d + '" type="application/x-shockwave-flash" name="' + a + '" />' + "</object>"
-                    }
-                };
-            soundcloud.addEventListener("onPlayerReady", function (b, e) {
-                c = soundcloud.getPlayer(a);
-                d.onReady()
-            });
-            soundcloud.addEventListener("onMediaEnd", d.onEnd);
-            soundcloud.addEventListener("onMediaBuffering", function (a, b) {
-                d.onBuffer(b.percent)
-            });
-            soundcloud.addEventListener("onMediaPlay", d.onPlay);
-            soundcloud.addEventListener("onMediaPause", d.onPause);
-            return {
-                load: function (a) {
-                    var d = a.permalink_url;
-                    if (c) {
-                        c.api_load(d)
-                    } else {
-                        b('<div class="sc-player-engine-container"></div>').appendTo(document.body).html(e(d))
-                    }
-                },
-                play: function () {
-                    c && c.api_play()
-                },
-                pause: function () {
-                    c && c.api_pause()
-                },
-                stop: function () {
-                    c && c.api_stop()
-                },
-                seek: function (a) {
-                    c && c.api_seekTo(c.api_getTrackDuration() * a)
-                },
-                getDuration: function () {
-                    return c && c.api_getTrackDuration && c.api_getTrackDuration() * 1e3
-                },
-                getPosition: function () {
-                    return c && c.api_getTrackPosition && c.api_getTrackPosition() * 1e3
-                },
-                setVolume: function (a) {
-                    if (c && c.api_setVolume) {
-                        c.api_setVolume(a)
-                    }
-                }
-            }
-        };
-        return c ? e() : f()
-    }();
-    var l, m = false,
-        n = [],
-        o = {}, p, q = function (a, c, d) {
-            var e = 0,
-                f = {
-                    node: a,
-                    tracks: []
-                }, g = function (a) {
-                    b.getJSON(j(a.url, l), function (d) {
-                        e += 1;
-                        if (d.tracks) {
-                            f.tracks = f.tracks.concat(d.tracks)
-                        } else if (d.duration) {
-                            d.permalink_url = a.url;
-                            f.tracks.push(d)
-                        } else if (d.username) {
-                            if (/favorites/.test(a.url)) {
-                                c.push({
-                                    url: d.uri + "/favorites"
-                                })
-                            } else {
-                                c.push({
-                                    url: d.uri + "/tracks"
-                                })
-                            }
-                        } else if (b.isArray(d)) {
-                            f.tracks = f.tracks.concat(d)
-                        }
-                        if (c[e]) {
-                            g(c[e])
-                        } else {
-                            f.node.trigger({
-                                type: "onTrackDataLoaded.scPlayer",
-                                playerObj: f
-                            })
-                        }
-                    })
-                };
-            l = d;
-            n.push(f);
-            g(c[e])
-        }, r = function (a, b) {
-            if (b) {
-                return '<div class="sc-loading-artwork">Loading Artwork</div>'
-            } else if (a.artwork_url) {
-                return '<img src="' + a.artwork_url.replace("-large", "-t300x300") + '"/>'
-            } else {
-                return '<div class="sc-no-artwork">No Artwork</div>'
-            }
-        }, s = function (a, d) {
-            b(".sc-info", a).each(function (a) {
-                b("h3", this).html('<a href="' + d.permalink_url + '">' + d.title + "</a>");
-                b("h4", this).html('by <a href="' + d.user.permalink_url + '">' + d.user.username + "</a>");
-                b("p", this).html(d.description || "no Description")
-            });
-            b(".sc-artwork-list li", a).each(function (a) {
-                var c = b(this),
-                    e = c.data("sc-track");
-                if (e === d) {
-                    c.addClass("active").find(".sc-loading-artwork").each(function (a) {
-                        b(this).removeClass("sc-loading-artwork").html(r(d, false))
-                    })
-                } else {
-                    c.removeClass("active")
-                }
-            });
-            b(".sc-duration", a).html(c(d.duration));
-            b(".sc-waveform-container", a).html('<img src="' + d.waveform_url + '" />');
-            a.trigger("onPlayerTrackSwitch.scPlayer", [d])
-        }, t = function (a) {
-            var b = a.permalink_url;
-            if (p === b) {
-                k.play()
-            } else {
-                p = b;
-                k.load(a, l)
-            }
-        }, u = function (a) {
-            return n[b(a).data("sc-player").id]
-        }, v = function (a, c) {
-            if (c) {
-                b("div.sc-player.playing").removeClass("playing")
-            }
-            b(a).toggleClass("playing", c).trigger((c ? "onPlayerPlay" : "onPlayerPause") + ".scPlayer")
-        }, w = function (a, c) {
-            var d = u(a).tracks[c || 0];
-            s(a, d);
-            o = {
-                $buffer: b(".sc-buffer", a),
-                $played: b(".sc-played", a),
-                position: b(".sc-position", a)[0]
-            };
-            v(a, true);
-            t(d)
-        }, x = function (a) {
-            v(a, false);
-            k.pause()
-        }, y = function () {
-            var a = o.$played.closest(".sc-player"),
-                d;
-            o.$played.css("width", "0%");
-            o.position.innerHTML = c(0);
-            v(a, false);
-            k.stop();
-            h("track finished get the next one");
-            d = b(".sc-trackslist li.active", a).next("li");
-            if (!d.length) {
-                d = a.nextAll("div.sc-player:first").find(".sc-trackslist li.active")
-            }
-            d.click()
-        }, z = function (a, b) {
-            k.seek(b)
-        }, A = function () {
-            var a = 80,
-                b = document.cookie.split(";"),
-                c = new RegExp("scPlayer_volume=(\\d+)");
-            for (var d in b) {
-                if (c.test(b[d])) {
-                    a = parseInt(b[d].match(c)[1], 10);
-                    break
-                }
-            }
-            return a
-        }(),
-        B = function (a) {
-            var b = Math.floor(a);
-            var c = new Date;
-            c.setTime(c.getTime() + 365 * 24 * 60 * 60 * 1e3);
-            A = b;
-            document.cookie = ["scPlayer_volume=", b, "; expires=", c.toUTCString(), '; path="/"'].join("");
-            k.setVolume(A)
-        }, C;
-    g.bind("scPlayer:onAudioReady", function (a) {
-        h("onPlayerReady: audio engine is ready");
-        k.play();
-        B(A)
-    }).bind("scPlayer:onMediaPlay", function (a) {
-        clearInterval(C);
-        C = setInterval(function () {
-            var a = k.getDuration(),
-                b = k.getPosition(),
-                d = b / a;
-            o.$played.css("width", 100 * d + "%");
-            o.position.innerHTML = c(b);
-            g.trigger({
-                type: "onMediaTimeUpdate.scPlayer",
-                duration: a,
-                position: b,
-                relative: d
-            })
-        }, 500)
-    }).bind("scPlayer:onMediaPause", function (a) {
-        clearInterval(C);
-        C = null
-    }).bind("scPlayer:onVolumeChange", function (a) {
-        B(a.volume)
-    }).bind("scPlayer:onMediaEnd", function (a) {
-        y()
-    }).bind("scPlayer:onMediaBuffering", function (a) {
-        o.$buffer.css("width", a.percent + "%")
-    });
-    b.scPlayer = function (a, e) {
-        var f = b.extend({}, b.scPlayer.defaults, a),
-            g = n.length,
-            h = e && b(e),
-            i = h[0].className.replace("sc-player", ""),
-            j = f.links || b.map(b("a", h).add(h.filter("a")), function (a) {
-                return {
-                    url: a.href,
-                    title: a.innerHTML
-                }
-            }),
-            k = b('<div class="sc-player loading"></div>').data("sc-player", {
-                id: g
-            }),
-            l = b('<ol class="sc-artwork-list"></ol>').appendTo(k),
-            o = b('<div class="sc-info"><h3></h3><h4></h4><p></p><a href="#" class="sc-info-close">X</a></div>').appendTo(k),
-            p = b('<div class="sc-controls"></div>').appendTo(k),
-            t = b('<ol class="sc-trackslist"></ol>').appendTo(k);
-        if (i || f.customClass) {
-            k.addClass(i).addClass(f.customClass)
-        }
-        k.find(".sc-controls").append('<a href="#play" class="sc-play">Play</a> <a href="#pause" class="sc-pause hidden">Pause</a>').end().append('<a href="#info" class="sc-info-toggle">Info</a>').append('<div class="sc-scrubber"></div>').find(".sc-scrubber").append('<div class="sc-volume-slider"><span class="sc-volume-status" style="width:' + A + '%"></span></div>').append('<div class="sc-time-span"><div class="sc-waveform-container"></div><div class="sc-buffer"></div><div class="sc-played"></div></div>').append('<div class="sc-time-indicators"><span class="sc-position"></span> | <span class="sc-duration"></span></div>');
-        q(k, j, f.apiKey);
-        k.bind("onTrackDataLoaded.scPlayer", function (a) {
-            var e = a.playerObj.tracks;
-            if (f.randomize) {
-                e = d(e)
-            }
-            b.each(e, function (a, d) {
-                var e = a === 0;
-                b('<li><a href="' + d.permalink_url + '">' + d.title + '</a><span class="sc-track-duration">' + c(d.duration) + "</span></li>").data("sc-track", {
-                    id: a
-                }).toggleClass("active", e).appendTo(t);
-                b("<li></li>").append(r(d, a >= f.loadArtworks)).appendTo(l).toggleClass("active", e).data("sc-track", d)
-            });
-            k.removeClass("loading").trigger("onPlayerInit.scPlayer");
-            k.each(function () {
-                if (b.isFunction(f.beforeRender)) {
-                    f.beforeRender.call(this, e)
-                }
-            });
-            b(".sc-duration", k)[0].innerHTML = c(e[0].duration);
-            b(".sc-position", k)[0].innerHTML = c(0);
-            s(k, e[0]);
-            if (f.autoPlay && !m) {
-                w(k);
-                m = true
-            }
-        });
-        h.each(function (a) {
-            b(this).replaceWith(k)
-        });
-        return k
-    };
-    b.scPlayer.stopAll = function () {
-        b(".sc-player.playing a.sc-pause").click()
-    };
-    b.fn.scPlayer = function (a) {
-        m = false;
-        this.each(function () {
-            b.scPlayer(a, this)
-        });
-        return this
-    };
-    b.scPlayer.defaults = b.fn.scPlayer.defaults = {
-        customClass: null,
-        beforeRender: function (a) {
-            var c = b(this)
-        },
-        onDomReady: function () {
-            b("a.sc-player, div.sc-player").scPlayer()
-        },
-        autoPlay: false,
-        randomize: false,
-        loadArtworks: 5,
-        apiKey: "htuiRd1JP11Ww0X72T1C3g"
-    };
-    b("a.sc-play, a.sc-pause").live("click", function (a) {
-        var c = b(this).closest(".sc-player").find("ol.sc-trackslist");
-        c.find("li.active").click();
-        return false
-    });
-    b("a.sc-info-toggle, a.sc-info-close").live("click", function (a) {
-        var c = b(this);
-        c.closest(".sc-player").find(".sc-info").toggleClass("active").end().find("a.sc-info-toggle").toggleClass("active");
-        return false
-    });
-    b(".sc-trackslist li").live("click", function (a) {
-        var c = b(this),
-            d = c.closest(".sc-player"),
-            e = c.data("sc-track").id,
-            f = d.is(":not(.playing)") || c.is(":not(.active)");
-        if (f) {
-            w(d, e)
-        } else {
-            x(d)
-        }
-        c.addClass("active").siblings("li").removeClass("active");
-        b(".artworks li", d).each(function (a) {
-            b(this).toggleClass("active", a === e)
-        });
-        return false
-    });
-    var D = function (a, c) {
-        var d = b(a).closest(".sc-time-span"),
-            e = d.find(".sc-buffer"),
-            f = d.find(".sc-waveform-container img"),
-            g = d.closest(".sc-player"),
-            h = Math.min(e.width(), c - f.offset().left) / f.width();
-        z(g, h)
-    };
-    var E = function (a) {
-        if (a.targetTouches.length === 1) {
-            D(a.target, a.targetTouches && a.targetTouches.length && a.targetTouches[0].clientX);
-            a.preventDefault()
-        }
-    };
-    b(".sc-time-span").live("click", function (a) {
-        D(this, a.pageX);
-        return false
-    }).live("touchstart", function (a) {
-        this.addEventListener("touchmove", E, false);
-        a.originalEvent.preventDefault()
-    }).live("touchend", function (a) {
-        this.removeEventListener("touchmove", E, false);
-        a.originalEvent.preventDefault()
-    });
-    var F = function (a, c) {
-        var d = b(a),
-            e = d.offset().left,
-            f = d.width(),
-            h = function (a) {
-                return Math.floor((a - e) / f * 100)
-            }, i = function (a) {
-                g.trigger({
-                    type: "scPlayer:onVolumeChange",
-                    volume: h(a.pageX)
-                })
-            };
-        d.bind("mousemove.sc-player", i);
-        i(c)
-    };
-    var G = function (a, c) {
-        b(a).unbind("mousemove.sc-player")
-    };
-    b(".sc-volume-slider").live("mousedown", function (a) {
-        F(this, a)
-    }).live("mouseup", function (a) {
-        G(this, a)
-    });
-    g.bind("scPlayer:onVolumeChange", function (a) {
-        b("span.sc-volume-status").css({
-            width: a.volume + "%"
-        })
-    });
-    b(function () {
-        if (b.isFunction(b.scPlayer.defaults.onDomReady)) {
-            b.scPlayer.defaults.onDomReady()
-        }
-    })
-})(jQuery);
 
 $(function () {
     var a = function () {
@@ -1170,22 +578,23 @@ $(function () {
     }();
     a.init()
 })
-$(document).ready(function() {
-		$("#form1").validationEngine({
-			ajaxSubmit: false,
-			success :  false,
-			failure : function() {}
-		})	
-	});
-	
-  $(function() {
-    $("button[rel]").overlay({mask: '#000'});
-  });
 
-  $(function () {
+$(function () {
+    // =========================
+    // Overlay init (CONTACT)
+    // =========================
+    $("button[rel]").overlay({ mask: '#000' });
+  
+    // =========================
+    // Form submit flow
+    // =========================
     var submitted = false;
   
-    $("#form1").on("submit", function () {
+    $("#contactForm").on("submit", function (e) {
+      // Als submit door native validation of Turnstile is geblokkeerd
+      if (e.isDefaultPrevented && e.isDefaultPrevented()) {
+        return;
+      }
       submitted = true;
     });
   
@@ -1200,27 +609,27 @@ $(document).ready(function() {
         bodyText = "";
       }
   
-      // 403 of andere error → toon nette melding
+      // Error (403 / captcha)
       if (bodyText.toLowerCase().includes("forbidden")) {
-        $("#turnstile-status").remove(); // als je al zo’n status element hebt
+        $("#form-div .form-error").remove();
         $("#form-div").prepend(
           '<p class="form-error">Captcha failed or request blocked. Please try again.</p>'
         );
         return;
       }
   
-      // Success → jouw bestaande thanks UI
-      $("#form-div").html(`
-        <div class="form-success">
-          <h3 class="hardware">Thanks</h3>
-          <p>Your message has been sent.</p>
-          <p><button type="button" id="closeOverlayBtn">Close</button></p>
-        </div>
-      `);
+      // Success
+      $("#form-div").html(
+        '<div class="form-success">' +
+          '<h3 class="hardware">Thanks</h3>' +
+          '<p>Your message has been sent.</p>' +
+          '<p><button type="button" id="closeOverlayBtn">Close</button></p>' +
+        '</div>'
+      );
+    });
   
-      $(document).on("click", "#closeOverlayBtn", function () {
-        $("#petrol .close").trigger("click");
-      });
+    $(document).on("click", "#closeOverlayBtn", function () {
+      $("#petrol .close").trigger("click");
     });
   });
   
@@ -1230,7 +639,7 @@ $(document).ready(function() {
     var TOKEN_FIELD = "cf-turnstile-response"; // default Turnstile hidden input name
 
     function getForm() {
-      return document.getElementById("form1");
+      return document.getElementById("contactForm");
     }
 
     function getSubmitBtn() {
@@ -1286,18 +695,28 @@ $(document).ready(function() {
 
     // ===== On page ready: disable submit until captcha ok =====
     document.addEventListener("DOMContentLoaded", function () {
-      setSubmitEnabled(false);
-
-      var form = getForm();
-      if (!form) return;
-
-      // Guard: if user tries to submit without token, block it
-      form.addEventListener("submit", function (e) {
-        if (!hasToken()) {
-          e.preventDefault();
-          setStatus("Please complete the captcha before submitting.");
-          setSubmitEnabled(false);
+        var form = getForm();
+        if (!form) return;
+      
+        // Alleen Turnstile logic aanzetten als de widget aanwezig is
+        var hasTurnstileWidget = !!document.querySelector(".cf-turnstile");
+      
+        if (!hasTurnstileWidget) {
+          // Geen Turnstile op pagina: submit moet gewoon werken
+          setSubmitEnabled(true);
+          return;
         }
+      
+        // Turnstile wél aanwezig: blokkeer submit tot token er is
+        setSubmitEnabled(false);
+      
+        form.addEventListener("submit", function (e) {
+          if (!hasToken()) {
+            e.preventDefault();
+            setStatus("Please complete the captcha before submitting.");
+            setSubmitEnabled(false);
+          }
+        });
       });
-    });
+      
   })();

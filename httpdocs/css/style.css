@@ -2689,3 +2689,19 @@ h3.work-selected-title{
 	cursor: default;
   }
   
+/* Form validation (replacement for ValidationEngine) */
+.field-error {
+	margin-top: 6px;
+	font-size: 12px;
+	line-height: 1.2;
+	color: #fff;
+	background: #810000;
+	padding: 6px 10px;
+	border-radius: 6px;
+  }
+  
+  .is-invalid {
+	outline: 2px solid #810000;
+	outline-offset: 2px;
+  }
+  
