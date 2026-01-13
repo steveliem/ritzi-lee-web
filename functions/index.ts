@@ -9,7 +9,7 @@ const SITEVERIFY_TIMEOUT_MS = 4000;
 const EMAIL_SEND_TIMEOUT_MS = 6000;
 
 const TO_EMAIL = "contact@ritzi-lee.com";
-const FROM_EMAIL = "no-reply@ritzi-lee.com";
+const FROM_EMAIL = "contact@ritzi-lee.com";
 
 const handler = staticFormsPlugin({
   respondWith: async () => {
