@@ -2749,3 +2749,32 @@ h3.work-selected-title{
 	cursor: pointer;
   }
   
+  .lang-switch {
+	text-align: left;              /* sluit aan bij CONTACT tekst */
+	margin-top: 1.5rem;
+	font-size: 0.75rem;
+	letter-spacing: 0.12em;
+  }
+  
+  .lang-switch a {
+	color: #ffffff;
+	text-decoration: none;
+	opacity: 0.6;
+  }
+  
+  .lang-switch a:hover {
+	opacity: 1;
+	text-decoration: underline;
+  }
+  
+  .lang-switch span {
+	margin: 0 0.5em;
+	color: #666;
+  }  
+
+  .lang-switch a[aria-current="true"] {
+	pointer-events: none;
+	opacity: 0.9;
+	text-decoration: underline;
+  }
+  
